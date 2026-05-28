@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  VIEWER
+}
+
+enum Stage {
+  PRE_ARRIVAL
+  BL_RECEIVED
+  TELEX_RELEASED
+  DO_PROCESSING
+  IN_TRANSIT
+  FTZ_EXAMINATION
+  DUTY_PAYMENT
+  ESCORT_DELIVERY
+  COMPLETED
+}
+
+enum DocumentType {
+  BL
+  FORM_M
+  TRANSIRE
+  TDO
+  CUSTOMS_EXAM
+  POD
+  OTHER
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      Role     @default(AGENT)
+  createdAt DateTime @default(now())
+
+  uploadedDocs Document[]
+}
+
+model Job {
+  id               String   @id @default(uuid())
+  reference        String   @unique // e.g. COP-0041
+  client           String
+  consignee        String?
+  notifyParty      String?
+  tin              String?
+  formMNumber      String?
+  baNumber         String?
+  rcNumber         String?
+  goodsDescription String
+  containerNumber  String
+  vesselName       String
+  transitLocation  String?
+  transireRequired Boolean  @default(false)
+  stage            Stage    @default(PRE_ARRIVAL)
+  
+  financials       Financials?
+  documents        Document[]
+  notifications    Notification[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([reference])
+  @@index([stage])
+}
+
+model Financials {
+  id                     String @id @default(uuid())
+  jobId                  String @unique
+  job                    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  containerDeposit       Float  @default(0)
+  dndCharges             Float  @default(0)
+  dndDays                Int    @default(0)
+  customsDuty            Float  @default(0)
+  transporterFee         Float  @default(0)
+  escortFee              Float  @default(0)
+  driverInconvenienceFee Float  @default(0)
+  miscFees               Float  @default(0)
+  invoicedAmount         Float  @default(0)
+}
+
+model Document {
+  id           String       @id @default(uuid())
+  jobId        String
+  job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  type         DocumentType @default(OTHER)
+  fileUrl      String
+  uploadedAt   DateTime     @default(now())
+  uploadedById String?
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  
+  @@index([jobId])
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  jobId     String
+  job       Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel
+  message   String
+  sentAt    DateTime            @default(now())
+  status    String              // e.g. DELIVERED, FAILED, PENDING
+  
+  @@index([jobId])
+}

@@ -1,0 +1,13 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --production
+
+COPY . .
+# Compile TypeScript files if necessary, or let ts-node/tsx handle it. We will use tsx as per our package.json
+RUN npm install -g tsx
+
+EXPOSE 3000
+CMD ["tsx", "server.ts"]
